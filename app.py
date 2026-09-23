@@ -6,7 +6,7 @@ import time
 from datetime import datetime
 from typing import TypedDict, List, Optional
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage , SystemMessage
 
 # --- 1. PERSISTENCE (Same as before) ---
 load_dotenv()  # Load environment variables from .env file
@@ -48,14 +48,20 @@ def get_therapist_response(patient_id, user_input=None):
         context = f"This is a FOLLOW-UP session. Care Path: {care_path}. Last session summary: {last_note}"
 
     # Logic: If user_input is None, we are STARTING the session and need a guided question.
-    if not user_input:
-        prompt = f"{context}\nTask: Generate a warm, professional opening question to start this session."
-    else:
-        prompt = f"{context}\nPatient said: {user_input}\nTask: Respond with empathy and ask a deep follow-up question."
+    system_instruction = SystemMessage(
+        content=(
+            "You are an empathetic, professional AI Mental Wellness Partner speaking directly to a patient. "
+            "Never offer options, choices, or meta-analysis. Speak in a single, direct, supportive voice."
+        )
+    )
 
+    if not user_input:
+        user_msg = HumanMessage(content=f"{context}\nTask: Greet the patient and start the session.")
+    else:
+        user_msg = HumanMessage(content=f"{context}\nPatient said: {user_input}\nTask: Respond and ask a follow-up.")
     for attempt in range(3):
         try:
-            res = llm.invoke(prompt)
+            res = llm.invoke([system_instruction, user_msg])
             return res.content
         except:
             time.sleep(2)
